@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { AuthProvider } from "@/lib/context/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TaskFlow | Manage Tasks & Teams",
-  description: "A simple task and team management application.",
+  title: "TaFo | Modern Task & Team Management",
+  description: "Collaborative task and team management application with role-based access.",
 };
 
 export default function RootLayout({
@@ -32,10 +33,12 @@ export default function RootLayout({
         <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-indigo-900/20 via-slate-900/10 to-transparent pointer-events-none -z-10"></div>
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none -z-10"></div>
         <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none -z-10"></div>
-        <Navbar />
-        <main className="flex-1 w-full relative z-0">
-          {children}
-        </main>
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 w-full relative z-0">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );
