@@ -9,31 +9,36 @@ datasource db {
 }
 
 model User {
-  id            String       @id
+  id            String         @id
   name          String?
-  email         String       @unique
+  email         String         @unique
   password      String?
-  createdAt     DateTime     @default(now())
+  createdAt     DateTime       @default(now())
   teams         TeamMember[]
-  assignedTasks Task[]       @relation("AssigneeTasks")
-  createdTasks  Task[]       @relation("CreatorTasks")
+  assignedTasks Task[]         @relation("AssigneeTasks")
+  createdTasks  Task[]         @relation("CreatorTasks")
+  messages      Message[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
 }
 
 model Team {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  ownerId     String
-  createdAt   DateTime     @default(now())
-  members     TeamMember[]
-  tasks       Task[]
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  ownerId      String
+  createdAt    DateTime      @default(now())
+  members      TeamMember[]
+  tasks        Task[]
+  messages     Message[]
+  activityLogs ActivityLog[]
 }
 
 model TeamMember {
   id       String   @id @default(cuid())
   teamId   String
   userId   String
-  role     String   @default("MEMBER")
+  role     String   @default("MEMBER") // OWNER, ADMIN, MEMBER
   joinedAt DateTime @default(now())
   team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -56,5 +61,38 @@ model Task {
   team        Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   assignee    User?     @relation("AssigneeTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
   creator     User?     @relation("CreatorTasks", fields: [creatorId], references: [id], onDelete: SetNull)
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  teamId    String
+  senderId  String
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // TASK_ASSIGNED, TEAM_INVITED, ROLE_UPDATED, SYSTEM
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  teamId    String
+  actorId   String
+  action    String   // created_task, updated_task, deleted_task, added_member, removed_member, updated_role
+  details   String?
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
 }
 

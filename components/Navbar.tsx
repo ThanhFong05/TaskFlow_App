@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import NotificationBell from '@/components/NotificationBell';
 import { CheckSquare, LogOut, User as UserIcon, Plus } from 'lucide-react';
 
 export default function Navbar() {
@@ -63,7 +64,9 @@ export default function Navbar() {
             {loading ? (
               <div className="w-8 h-8 rounded-full bg-slate-800 animate-pulse" />
             ) : user ? (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <NotificationBell userId={user.id} />
+
                 <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-slate-900/80 border border-white/10 text-xs">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white text-xs uppercase shadow-sm">
                     {displayName.charAt(0)}

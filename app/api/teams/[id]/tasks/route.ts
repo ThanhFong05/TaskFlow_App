@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createNotification } from '@/lib/notifications';
+import { logActivity } from '@/lib/activity';
 
 export async function GET(
   req: Request,
@@ -101,6 +103,9 @@ export async function POST(
           userId: authUser.id,
         },
       },
+      include: {
+        team: true,
+      },
     });
 
     if (!membership) {
@@ -158,6 +163,28 @@ export async function POST(
           select: { id: true, name: true, email: true },
         },
       },
+    });
+
+    const teamName = membership.team.name;
+    const creatorName = authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'A team member';
+
+    // In-app Notification for assignee (if assigned to someone else)
+    if (assigneeId && assigneeId !== authUser.id) {
+      await createNotification({
+        userId: assigneeId,
+        type: 'TASK_ASSIGNED',
+        title: 'Task Assigned',
+        message: `${creatorName} assigned you to "${task.title}" in team "${teamName}".`,
+        link: `/teams/${teamId}`,
+      });
+    }
+
+    // Activity Log
+    await logActivity({
+      teamId,
+      actorId: authUser.id,
+      action: 'created_task',
+      details: `Created task "${task.title}"`,
     });
 
     return NextResponse.json(task, { status: 201 });
