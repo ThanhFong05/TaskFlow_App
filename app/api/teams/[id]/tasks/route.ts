@@ -74,10 +74,12 @@ export async function GET(
     });
 
     return NextResponse.json(tasks);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to fetch team tasks:', error);
-    const message = error instanceof Error ? error.message : 'Failed to fetch tasks';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to fetch tasks' },
+      { status: 500 }
+    );
   }
 }
 
@@ -186,9 +188,11 @@ export async function POST(
     });
 
     return NextResponse.json(task, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to create team task:', error);
-    const message = error instanceof Error ? error.message : 'Failed to create task';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to create task' },
+      { status: 500 }
+    );
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export interface NotificationItem {
@@ -17,6 +17,8 @@ export interface NotificationItem {
 export function useNotifications(userId?: string) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
@@ -34,24 +36,7 @@ export function useNotifications(userId?: string) {
 
   useEffect(() => {
     if (!userId) return;
-
-    let ignore = false;
-    async function load() {
-      try {
-        const res = await fetch('/api/notifications');
-        if (res.ok) {
-          const data = await res.json();
-          if (!ignore) {
-            setNotifications(data.notifications || []);
-            setUnreadCount(data.unreadCount || 0);
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    load();
+    fetchNotifications();
 
     // Setup periodic refresh every 20s as fallback
     const interval = setInterval(fetchNotifications, 20000);
@@ -63,19 +48,14 @@ export function useNotifications(userId?: string) {
     });
 
     channel.on('broadcast', { event: 'new_notification' }, (payload) => {
-      const item = payload.payload as NotificationItem;
-      if (item) {
-        setNotifications((prev) => [item, ...prev]);
+      if (payload.payload) {
+        setNotifications((prev) => [payload.payload, ...prev]);
         setUnreadCount((c) => c + 1);
 
-        // Optional: browser notification
-        if (
-          typeof window !== 'undefined' &&
-          'Notification' in window &&
-          Notification.permission === 'granted'
-        ) {
-          new Notification(item.title || 'New Notification', {
-            body: item.message,
+        // Optional: browser notification or sound
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification(payload.payload.title || 'New Notification', {
+            body: payload.payload.message,
           });
         }
       }
@@ -84,7 +64,6 @@ export function useNotifications(userId?: string) {
     channel.subscribe();
 
     return () => {
-      ignore = true;
       clearInterval(interval);
       channel.unsubscribe();
     };
@@ -92,6 +71,7 @@ export function useNotifications(userId?: string) {
 
   const markAsRead = async (id: string) => {
     try {
+      // Optimistic update
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
@@ -119,6 +99,7 @@ export function useNotifications(userId?: string) {
   return {
     notifications,
     unreadCount,
+    loading,
     refresh: fetchNotifications,
     markAsRead,
     markAllAsRead,

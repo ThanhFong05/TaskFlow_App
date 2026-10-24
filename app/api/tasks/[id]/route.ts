@@ -120,10 +120,12 @@ export async function PUT(
     }
 
     return NextResponse.json(updatedTask);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to update task:', error);
-    const message = error instanceof Error ? error.message : 'Failed to update task';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to update task' },
+      { status: 500 }
+    );
   }
 }
 
@@ -199,9 +201,11 @@ export async function DELETE(
     }
 
     return NextResponse.json({ message: 'Task deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to delete task:', error);
-    const message = error instanceof Error ? error.message : 'Failed to delete task';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to delete task' },
+      { status: 500 }
+    );
   }
 }

@@ -110,9 +110,11 @@ export async function POST(
     });
 
     return NextResponse.json(newMember, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to add member:', error);
-    const message = error instanceof Error ? error.message : 'Failed to add member';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to add member' },
+      { status: 500 }
+    );
   }
 }

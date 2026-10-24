@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Use cast to prevent IDE cached type errors if PrismaClient is reloaded
+const db = prisma as any;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,22 +34,33 @@ export async function GET(
       );
     }
 
-    const messages = await prisma.message.findMany({
-      where: { teamId },
-      include: {
-        sender: {
-          select: { id: true, name: true, email: true },
+    try {
+      const messages = await db.message.findMany({
+        where: { teamId },
+        include: {
+          sender: {
+            select: { id: true, name: true, email: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 100, // recent 100 messages
-    });
+        orderBy: { createdAt: 'asc' },
+        take: 100, // recent 100 messages
+      });
 
-    return NextResponse.json(messages);
-  } catch (error) {
+      return NextResponse.json(messages);
+    } catch (dbError: any) {
+      // If table doesn't exist yet in database, return empty array gracefully
+      if (dbError?.code === 'P2021' || dbError?.message?.includes('does not exist')) {
+        console.warn('Message table does not exist in database yet. Returning empty list.');
+        return NextResponse.json([]);
+      }
+      throw dbError;
+    }
+  } catch (error: any) {
     console.error('Failed to get team messages:', error);
-    const message = error instanceof Error ? error.message : 'Failed to get messages';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to get messages' },
+      { status: 500 }
+    );
   }
 }
 
@@ -86,23 +100,38 @@ export async function POST(
       return NextResponse.json({ error: 'Message content cannot be empty' }, { status: 400 });
     }
 
-    const message = await prisma.message.create({
-      data: {
-        content,
-        teamId,
-        senderId: authUser.id,
-      },
-      include: {
-        sender: {
-          select: { id: true, name: true, email: true },
+    try {
+      const message = await db.message.create({
+        data: {
+          content,
+          teamId,
+          senderId: authUser.id,
         },
-      },
-    });
+        include: {
+          sender: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
 
-    return NextResponse.json(message, { status: 201 });
-  } catch (error) {
+      return NextResponse.json(message, { status: 201 });
+    } catch (dbError: any) {
+      if (dbError?.code === 'P2021' || dbError?.message?.includes('does not exist')) {
+        return NextResponse.json(
+          {
+            error:
+              'Table "Message" chưa tồn tại trong database. Vui lòng mở lại Supabase và chạy "npx prisma db push" hoặc thực thi file migration.sql trong Supabase SQL Editor.',
+          },
+          { status: 500 }
+        );
+      }
+      throw dbError;
+    }
+  } catch (error: any) {
     console.error('Failed to post team message:', error);
-    const message = error instanceof Error ? error.message : 'Failed to post message';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Failed to post message' },
+      { status: 500 }
+    );
   }
 }

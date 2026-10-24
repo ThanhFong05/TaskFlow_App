@@ -13,21 +13,27 @@ import {
   Users,
   Plus,
   ArrowLeft,
+  ShieldCheck,
   CheckCircle2,
   Trash2,
   Edit3,
   Calendar,
   AlertCircle,
   Search,
+  Filter,
   Kanban,
   List,
   UserPlus,
+  X,
+  Clock,
   Check,
+  MoreVertical,
   Loader2,
   Settings,
   MessageSquare,
   Activity,
   Info,
+  Radio,
   Lock,
 } from 'lucide-react';
 
@@ -117,6 +123,9 @@ export default function TeamDetailPage({
   const [editTeamDescription, setEditTeamDescription] = useState('');
   const [savingTeam, setSavingTeam] = useState(false);
 
+  // Live incoming message state for chat
+  const [liveIncomingMessage, setLiveIncomingMessage] = useState<ChatMessage | null>(null);
+
   // Live task update callbacks
   const handleLiveTaskCreated = useCallback((newTask: Task) => {
     setTeam((prev) => {
@@ -146,12 +155,8 @@ export default function TeamDetailPage({
     });
   }, []);
 
-  // Messages state
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(true);
-
   const handleLiveMessage = useCallback((msg: ChatMessage) => {
-    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+    setLiveIncomingMessage(msg);
   }, []);
 
   // Supabase Realtime Hook
@@ -164,7 +169,7 @@ export default function TeamDetailPage({
     broadcastTaskUpdated,
     broadcastTaskDeleted,
     broadcastTyping,
-  } = useTeamRealtime<ChatMessage, Task>({
+  } = useTeamRealtime({
     teamId,
     currentUser: user,
     onNewMessage: handleLiveMessage,
@@ -173,88 +178,39 @@ export default function TeamDetailPage({
     onTaskDeleted: handleLiveTaskDeleted,
   });
 
-  const reloadTeam = useCallback(async () => {
+  const fetchTeam = async () => {
     try {
+      setLoading(true);
       const res = await fetch(`/api/teams/${teamId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTeam(data);
-        setEditTeamName(data.name);
-        setEditTeamDescription(data.description || '');
+      if (!res.ok) {
+        if (res.status === 403) setError('You do not have access to this team.');
+        else if (res.status === 404) setError('Team not found.');
+        else setError('Failed to load team.');
+        return;
       }
+      const data = await res.json();
+      setTeam(data);
+      setEditTeamName(data.name);
+      setEditTeamDescription(data.description || '');
     } catch (err) {
       console.error(err);
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    let ignore = false;
-    async function init() {
-      try {
-        const [teamRes, msgRes] = await Promise.all([
-          fetch(`/api/teams/${teamId}`),
-          fetch(`/api/teams/${teamId}/messages`),
-        ]);
-
-        if (ignore) return;
-
-        if (!teamRes.ok) {
-          if (teamRes.status === 403) setError('You do not have access to this team.');
-          else if (teamRes.status === 404) setError('Team not found.');
-          else setError('Failed to load team.');
-          setLoading(false);
-          setLoadingMessages(false);
-          return;
-        }
-
-        const teamData = await teamRes.json();
-        if (ignore) return;
-        setTeam(teamData);
-        setEditTeamName(teamData.name);
-        setEditTeamDescription(teamData.description || '');
-
-        if (msgRes.ok) {
-          const msgData = await msgRes.json();
-          if (!ignore) setMessages(msgData);
-        }
-      } catch (err) {
-        if (!ignore) {
-          console.error(err);
-          setError('An error occurred while loading team data.');
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-          setLoadingMessages(false);
-        }
-      }
-    }
-
-    init();
-    return () => {
-      ignore = true;
-    };
-  }, [teamId]);
-
-  const handleSendMessage = async (content: string) => {
-    const res = await fetch(`/api/teams/${teamId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
-
-    if (res.ok) {
-      const savedMessage = await res.json();
-      setMessages((prev) => [...prev, savedMessage]);
-      broadcastNewMessage(savedMessage);
+      setError('An error occurred while loading team data.');
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTeam();
+  }, [teamId]);
 
   // Role permissions helpers
   const currentRole = team?.currentUserRole || 'MEMBER';
   const isOwner = currentRole === 'OWNER' || team?.ownerId === user?.id;
   const isAdmin = currentRole === 'ADMIN';
+  const isMemberOnly = currentRole === 'MEMBER';
   const canManageMembers = isOwner || isAdmin;
+  const canManageAllTasks = isOwner || isAdmin;
 
   // Check if current user can delete a specific task
   const canDeleteTask = (task: Task) => {
@@ -338,9 +294,8 @@ export default function TeamDetailPage({
 
       setShowTaskModal(false);
       setTaskSubmitting(false);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error saving task';
-      setTaskFormError(msg);
+    } catch (err: any) {
+      setTaskFormError(err.message || 'Error saving task');
       setTaskSubmitting(false);
     }
   };
@@ -367,11 +322,11 @@ export default function TeamDetailPage({
         // Broadcast status update to other online members
         broadcastTaskUpdated(updatedTask);
       } else {
-        reloadTeam(); // rollback on failure
+        fetchTeam(); // rollback on failure
       }
     } catch (err) {
       console.error(err);
-      reloadTeam();
+      fetchTeam();
     }
   };
 
@@ -392,11 +347,11 @@ export default function TeamDetailPage({
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || 'Failed to delete task');
-        reloadTeam(); // rollback
+        fetchTeam(); // rollback
       }
     } catch (err) {
       console.error(err);
-      reloadTeam();
+      fetchTeam();
     }
   };
 
@@ -428,11 +383,10 @@ export default function TeamDetailPage({
       setInviteSuccess(`Successfully added ${inviteEmail} as ${data.role || 'Member'}!`);
       setInviteEmail('');
       setInviting(false);
-      reloadTeam();
+      fetchTeam();
       setTimeout(() => setShowMemberModal(false), 1200);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error adding member';
-      setInviteError(msg);
+    } catch (err: any) {
+      setInviteError(err.message || 'Error adding member');
       setInviting(false);
     }
   };
@@ -458,7 +412,7 @@ export default function TeamDetailPage({
 
       const data = await res.json();
       if (res.ok) {
-        reloadTeam();
+        fetchTeam();
       } else {
         alert(data.error || 'Failed to update member role');
       }
@@ -483,7 +437,7 @@ export default function TeamDetailPage({
         if (isSelf) {
           router.push('/teams');
         } else {
-          reloadTeam();
+          fetchTeam();
         }
       } else {
         const data = await res.json();
@@ -508,7 +462,7 @@ export default function TeamDetailPage({
       });
       if (res.ok) {
         setShowEditTeamModal(false);
-        reloadTeam();
+        fetchTeam();
       }
     } catch (err) {
       console.error(err);
@@ -1108,13 +1062,12 @@ export default function TeamDetailPage({
         <TeamChat
           teamId={teamId}
           currentUser={user}
-          messages={messages}
-          loadingMessages={loadingMessages}
           onlineUsers={onlineUsers}
           typingUsers={typingUsers}
+          broadcastNewMessage={broadcastNewMessage}
           broadcastTyping={broadcastTyping}
-          onSendMessage={handleSendMessage}
           isConnected={isConnected}
+          incomingMessage={liveIncomingMessage}
         />
       )}
 
@@ -1143,6 +1096,7 @@ export default function TeamDetailPage({
             <div className="divide-y divide-white/5">
               {team.members.map((member) => {
                 const isMemberOwner = member.role === 'OWNER';
+                const isMemberAdmin = member.role === 'ADMIN';
                 const isSelf = member.user.id === user?.id;
 
                 // Who can remove this member:

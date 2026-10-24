@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Activity,
+  Calendar,
   CheckCircle2,
   Clock,
   Loader2,
@@ -10,6 +11,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Trash2,
+  UserCheck,
   UserMinus,
   UserPlus,
 } from 'lucide-react';
@@ -32,7 +34,7 @@ export default function ActivityLogList({ teamId }: { teamId: string }) {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const reloadActivities = useCallback(async () => {
+  const fetchActivities = async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/teams/${teamId}/activity`);
@@ -41,32 +43,14 @@ export default function ActivityLogList({ teamId }: { teamId: string }) {
         setActivities(data);
       }
     } catch (err) {
-      console.error('Failed to reload team activity log:', err);
+      console.error('Failed to load team activity log:', err);
     } finally {
       setLoading(false);
     }
-  }, [teamId]);
+  };
 
   useEffect(() => {
-    let ignore = false;
-    async function load() {
-      try {
-        const res = await fetch(`/api/teams/${teamId}/activity`);
-        if (res.ok) {
-          const data = await res.json();
-          if (!ignore) setActivities(data);
-        }
-      } catch (err) {
-        if (!ignore) console.error('Failed to load team activity log:', err);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      ignore = true;
-    };
+    fetchActivities();
   }, [teamId]);
 
   const getActionBadge = (action: string) => {
@@ -118,9 +102,16 @@ export default function ActivityLogList({ teamId }: { teamId: string }) {
     }
   };
 
-  const formatActivityTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${d.toLocaleDateString()} at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  const formatRelativeTime = (dateStr: string) => {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHour < 24) return `${diffHour}h ago`;
+    return `${diffDay}d ago (${new Date(dateStr).toLocaleDateString()})`;
   };
 
   return (
@@ -135,7 +126,7 @@ export default function ActivityLogList({ teamId }: { teamId: string }) {
         </div>
 
         <button
-          onClick={reloadActivities}
+          onClick={fetchActivities}
           disabled={loading}
           className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all disabled:opacity-50"
         >
@@ -186,7 +177,7 @@ export default function ActivityLogList({ teamId }: { teamId: string }) {
 
                       <span className="text-[11px] text-slate-500 flex items-center space-x-1">
                         <Clock className="w-3 h-3 mr-1 text-slate-600" />
-                        {formatActivityTime(act.createdAt)}
+                        {formatRelativeTime(act.createdAt)}
                       </span>
                     </div>
 

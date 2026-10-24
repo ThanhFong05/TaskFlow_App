@@ -4,7 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Send,
   Loader2,
+  Users,
   MessageSquare,
+  Circle,
+  Clock,
   Sparkles,
 } from 'lucide-react';
 import { OnlineUser } from '@/lib/hooks/useTeamRealtime';
@@ -29,33 +32,68 @@ interface TeamChatProps {
     name?: string | null;
     email?: string;
   } | null;
-  messages: ChatMessage[];
-  loadingMessages: boolean;
   onlineUsers: OnlineUser[];
   typingUsers: string[];
+  broadcastNewMessage: (msg: any) => void;
   broadcastTyping: (isTyping: boolean) => void;
-  onSendMessage: (content: string) => Promise<void>;
   isConnected: boolean;
+  incomingMessage?: ChatMessage | null;
 }
 
 export default function TeamChat({
+  teamId,
   currentUser,
-  messages,
-  loadingMessages,
   onlineUsers,
   typingUsers,
+  broadcastNewMessage,
   broadcastTyping,
-  onSendMessage,
   isConnected,
+  incomingMessage,
 }: TeamChatProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-scroll to bottom on new messages
+  // Fetch initial message history
   useEffect(() => {
+    async function fetchMessages() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/teams/${teamId}/messages`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchMessages();
+  }, [teamId]);
+
+  // Handle incoming live broadcast message
+  useEffect(() => {
+    if (incomingMessage && incomingMessage.teamId === teamId) {
+      setMessages((prev) => {
+        // Prevent duplicate if already added
+        if (prev.some((m) => m.id === incomingMessage.id)) return prev;
+        return [...prev, incomingMessage];
+      });
+    }
+  }, [incomingMessage, teamId]);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
 
   // Handle typing debounce
@@ -80,11 +118,24 @@ export default function TeamChat({
     if (!content || sending) return;
 
     setSending(true);
+    // Stop typing broadcast
     broadcastTyping(false);
 
     try {
-      await onSendMessage(content);
-      setInputValue('');
+      const res = await fetch(`/api/teams/${teamId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+
+      if (res.ok) {
+        const savedMessage = await res.json();
+        // Optimistic / Local append
+        setMessages((prev) => [...prev, savedMessage]);
+        // Broadcast to other team members in real-time
+        broadcastNewMessage(savedMessage);
+        setInputValue('');
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
     } finally {
@@ -157,7 +208,7 @@ export default function TeamChat({
 
       {/* Messages Feed */}
       <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
-        {loadingMessages ? (
+        {loading ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
             <span>Loading message history...</span>

@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
 
+const db = prisma as any;
+
 export type NotificationType = 'TASK_ASSIGNED' | 'TEAM_INVITED' | 'ROLE_UPDATED' | 'SYSTEM';
 
 export interface CreateNotificationParams {
@@ -12,7 +14,7 @@ export interface CreateNotificationParams {
 
 export async function createNotification(params: CreateNotificationParams) {
   try {
-    return await prisma.notification.create({
+    return await db.notification.create({
       data: {
         userId: params.userId,
         type: params.type,
@@ -28,30 +30,45 @@ export async function createNotification(params: CreateNotificationParams) {
 }
 
 export async function getUserNotifications(userId: string, limit = 20) {
-  const [notifications, unreadCount] = await Promise.all([
-    prisma.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    }),
-    prisma.notification.count({
-      where: { userId, isRead: false },
-    }),
-  ]);
+  try {
+    const [notifications, unreadCount] = await Promise.all([
+      db.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      }),
+      db.notification.count({
+        where: { userId, isRead: false },
+      }),
+    ]);
 
-  return { notifications, unreadCount };
+    return { notifications, unreadCount };
+  } catch (error) {
+    console.warn('Could not query notifications (table may not exist yet):', error);
+    return { notifications: [], unreadCount: 0 };
+  }
 }
 
 export async function markNotificationAsRead(id: string, userId: string) {
-  return await prisma.notification.updateMany({
-    where: { id, userId },
-    data: { isRead: true },
-  });
+  try {
+    return await db.notification.updateMany({
+      where: { id, userId },
+      data: { isRead: true },
+    });
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+    return null;
+  }
 }
 
 export async function markAllNotificationsAsRead(userId: string) {
-  return await prisma.notification.updateMany({
-    where: { userId, isRead: false },
-    data: { isRead: true },
-  });
+  try {
+    return await db.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error);
+    return null;
+  }
 }

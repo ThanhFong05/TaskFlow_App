@@ -11,34 +11,27 @@ export interface OnlineUser {
   onlineAt?: string;
 }
 
-export interface UseTeamRealtimeOptions<TMessage = unknown, TTask = unknown> {
+export interface UseTeamRealtimeOptions {
   teamId: string;
   currentUser?: {
     id: string;
     name?: string | null;
     email?: string;
   } | null;
-  onNewMessage?: (message: TMessage) => void;
-  onTaskCreated?: (task: TTask) => void;
-  onTaskUpdated?: (task: TTask) => void;
+  onNewMessage?: (message: any) => void;
+  onTaskCreated?: (task: any) => void;
+  onTaskUpdated?: (task: any) => void;
   onTaskDeleted?: (taskId: string) => void;
 }
 
-interface PresenceData {
-  userId?: string;
-  name?: string;
-  email?: string;
-  onlineAt?: string;
-}
-
-export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
+export function useTeamRealtime({
   teamId,
   currentUser,
   onNewMessage,
   onTaskCreated,
   onTaskUpdated,
   onTaskDeleted,
-}: UseTeamRealtimeOptions<TMessage, TTask>) {
+}: UseTeamRealtimeOptions) {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -47,23 +40,22 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
 
   // Keep latest callbacks in refs to avoid re-subscribing on every render
   const onNewMessageRef = useRef(onNewMessage);
-  const onTaskCreatedRef = useRef(onTaskCreated);
-  const onTaskUpdatedRef = useRef(onTaskUpdated);
-  const onTaskDeletedRef = useRef(onTaskDeleted);
+  onNewMessageRef.current = onNewMessage;
 
-  useEffect(() => {
-    onNewMessageRef.current = onNewMessage;
-    onTaskCreatedRef.current = onTaskCreated;
-    onTaskUpdatedRef.current = onTaskUpdated;
-    onTaskDeletedRef.current = onTaskDeleted;
-  }, [onNewMessage, onTaskCreated, onTaskUpdated, onTaskDeleted]);
+  const onTaskCreatedRef = useRef(onTaskCreated);
+  onTaskCreatedRef.current = onTaskCreated;
+
+  const onTaskUpdatedRef = useRef(onTaskUpdated);
+  onTaskUpdatedRef.current = onTaskUpdated;
+
+  const onTaskDeletedRef = useRef(onTaskDeleted);
+  onTaskDeletedRef.current = onTaskDeleted;
 
   useEffect(() => {
     if (!teamId) return;
 
     const supabase = createClient();
     const channelName = `team-room-${teamId}`;
-    const timeoutMap = typingTimeoutRef.current;
 
     const channel = supabase.channel(channelName, {
       config: {
@@ -77,46 +69,44 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
     // 1. Listen to Broadcast: Messages
     channel.on('broadcast', { event: 'new_message' }, (payload) => {
       if (payload.payload && onNewMessageRef.current) {
-        onNewMessageRef.current(payload.payload as TMessage);
+        onNewMessageRef.current(payload.payload);
       }
     });
 
     // 2. Listen to Broadcast: Tasks
     channel.on('broadcast', { event: 'task_created' }, (payload) => {
       if (payload.payload && onTaskCreatedRef.current) {
-        onTaskCreatedRef.current(payload.payload as TTask);
+        onTaskCreatedRef.current(payload.payload);
       }
     });
 
     channel.on('broadcast', { event: 'task_updated' }, (payload) => {
       if (payload.payload && onTaskUpdatedRef.current) {
-        onTaskUpdatedRef.current(payload.payload as TTask);
+        onTaskUpdatedRef.current(payload.payload);
       }
     });
 
     channel.on('broadcast', { event: 'task_deleted' }, (payload) => {
-      const deletedPayload = payload.payload as { taskId?: string };
-      if (deletedPayload?.taskId && onTaskDeletedRef.current) {
-        onTaskDeletedRef.current(deletedPayload.taskId);
+      if (payload.payload?.taskId && onTaskDeletedRef.current) {
+        onTaskDeletedRef.current(payload.payload.taskId);
       }
     });
 
     // 3. Listen to Broadcast: Typing
     channel.on('broadcast', { event: 'user_typing' }, (payload) => {
-      const typingPayload = payload.payload as { userName?: string; isTyping?: boolean };
-      const { userName, isTyping } = typingPayload || {};
+      const { userName, isTyping } = payload.payload || {};
       if (!userName) return;
 
       if (isTyping) {
         setTypingUsers((prev) => Array.from(new Set([...prev, userName])));
 
         // Clear existing timeout for this user
-        if (timeoutMap[userName]) {
-          clearTimeout(timeoutMap[userName]);
+        if (typingTimeoutRef.current[userName]) {
+          clearTimeout(typingTimeoutRef.current[userName]);
         }
 
         // Auto remove typing status after 3 seconds
-        timeoutMap[userName] = setTimeout(() => {
+        typingTimeoutRef.current[userName] = setTimeout(() => {
           setTypingUsers((prev) => prev.filter((u) => u !== userName));
         }, 3000);
       } else {
@@ -127,11 +117,11 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
     // 4. Listen to Presence: Online / Offline
     channel
       .on('presence', { event: 'sync' }, () => {
-        const presenceState = channel.presenceState<PresenceData>();
+        const presenceState = channel.presenceState();
         const usersMap = new Map<string, OnlineUser>();
 
-        Object.values(presenceState).forEach((presences) => {
-          presences.forEach((p) => {
+        Object.values(presenceState).forEach((presences: any) => {
+          presences.forEach((p: any) => {
             if (p.userId) {
               usersMap.set(p.userId, {
                 userId: p.userId,
@@ -145,10 +135,10 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
 
         setOnlineUsers(Array.from(usersMap.values()));
       })
-      .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: PresenceData[] }) => {
+      .on('presence', { event: 'join' }, ({ newPresences }: any) => {
         setOnlineUsers((prev) => {
           const updated = [...prev];
-          newPresences.forEach((np) => {
+          newPresences.forEach((np: any) => {
             if (np.userId && !updated.some((u) => u.userId === np.userId)) {
               updated.push({
                 userId: np.userId,
@@ -161,8 +151,8 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
           return updated;
         });
       })
-      .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: PresenceData[] }) => {
-        const leftIds = new Set(leftPresences.map((lp) => lp.userId).filter(Boolean));
+      .on('presence', { event: 'leave' }, ({ leftPresences }: any) => {
+        const leftIds = new Set(leftPresences.map((lp: any) => lp.userId));
         setOnlineUsers((prev) => prev.filter((u) => !leftIds.has(u.userId)));
       });
 
@@ -186,7 +176,8 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
     channelRef.current = channel;
 
     return () => {
-      Object.values(timeoutMap).forEach(clearTimeout);
+      // Cleanup timeouts
+      Object.values(typingTimeoutRef.current).forEach(clearTimeout);
       channel.unsubscribe();
       channelRef.current = null;
       setIsConnected(false);
@@ -194,32 +185,32 @@ export function useTeamRealtime<TMessage = unknown, TTask = unknown>({
   }, [teamId, currentUser?.id, currentUser?.email, currentUser?.name]);
 
   // Broadcast Helper Methods
-  const broadcastNewMessage = useCallback((message: TMessage) => {
+  const broadcastNewMessage = useCallback((message: any) => {
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'new_message',
-        payload: message as Record<string, unknown>,
+        payload: message,
       });
     }
   }, []);
 
-  const broadcastTaskCreated = useCallback((task: TTask) => {
+  const broadcastTaskCreated = useCallback((task: any) => {
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'task_created',
-        payload: task as Record<string, unknown>,
+        payload: task,
       });
     }
   }, []);
 
-  const broadcastTaskUpdated = useCallback((task: TTask) => {
+  const broadcastTaskUpdated = useCallback((task: any) => {
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'task_updated',
-        payload: task as Record<string, unknown>,
+        payload: task,
       });
     }
   }, []);
