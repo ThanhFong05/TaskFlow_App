@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useNotifications, NotificationItem } from '@/lib/hooks/useNotifications';
+import { useNotifications } from '@/lib/hooks/useNotifications';
 import {
   Bell,
   Check,
@@ -11,7 +11,6 @@ import {
   Users,
   ShieldCheck,
   Info,
-  Clock,
   ExternalLink,
 } from 'lucide-react';
 
@@ -48,17 +47,9 @@ export default function NotificationBell({ userId }: { userId?: string }) {
     }
   };
 
-  const formatTimeAgo = (dateStr: string) => {
-    const diffMs = Date.now() - new Date(dateStr).getTime();
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
-
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHour < 24) return `${diffHour}h ago`;
-    return `${diffDay}d ago`;
+  const formatNotificationTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${d.toLocaleDateString()}`;
   };
 
   return (
@@ -130,7 +121,7 @@ export default function NotificationBell({ userId }: { userId?: string }) {
                         {n.title}
                       </h4>
                       <span className="text-[10px] text-slate-500 whitespace-nowrap ml-2">
-                        {formatTimeAgo(n.createdAt)}
+                        {formatNotificationTime(n.createdAt)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">

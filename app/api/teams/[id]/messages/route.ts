@@ -43,12 +43,10 @@ export async function GET(
     });
 
     return NextResponse.json(messages);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to get team messages:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to get messages' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to get messages';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -102,11 +100,9 @@ export async function POST(
     });
 
     return NextResponse.json(message, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to post team message:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to post message' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to post message';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

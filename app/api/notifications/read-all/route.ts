@@ -12,11 +12,9 @@ export async function PUT(req: Request) {
     await markAllNotificationsAsRead(authUser.id);
 
     return NextResponse.json({ success: true, message: 'All notifications marked as read' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to mark all notifications read:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to mark all notifications read' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to mark all notifications read';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

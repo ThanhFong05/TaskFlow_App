@@ -15,11 +15,9 @@ export async function GET(req: Request) {
       notifications,
       unreadCount,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to get notifications:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to get notifications' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to get notifications';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

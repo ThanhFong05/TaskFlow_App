@@ -138,12 +138,10 @@ export async function PUT(
     });
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to update member role:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to update member role' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to update member role';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -261,11 +259,9 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: 'Member removed successfully' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to remove member:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to remove member' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to remove member';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

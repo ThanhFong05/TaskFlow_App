@@ -16,11 +16,9 @@ export async function PUT(
     await markNotificationAsRead(id, authUser.id);
 
     return NextResponse.json({ success: true, message: 'Notification marked as read' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to mark notification read:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to mark notification read' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to mark notification read';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

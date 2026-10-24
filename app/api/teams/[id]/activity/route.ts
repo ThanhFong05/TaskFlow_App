@@ -34,11 +34,9 @@ export async function GET(
     const activities = await getTeamActivities(teamId, 50);
 
     return NextResponse.json(activities);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to get team activities:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to get activities' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Failed to get activities';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
