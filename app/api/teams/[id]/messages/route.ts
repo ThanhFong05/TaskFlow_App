@@ -94,10 +94,14 @@ export async function POST(
     }
 
     const body = await req.json();
-    const content = body?.content?.trim();
+    const content = body?.content?.trim() || '';
+    const fileUrl = body?.fileUrl || null;
+    const fileName = body?.fileName || null;
+    const fileType = body?.fileType || null;
+    const fileSize = body?.fileSize || null;
 
-    if (!content) {
-      return NextResponse.json({ error: 'Message content cannot be empty' }, { status: 400 });
+    if (!content && !fileUrl) {
+      return NextResponse.json({ error: 'Message content or attachment is required' }, { status: 400 });
     }
 
     try {
@@ -106,6 +110,10 @@ export async function POST(
           content,
           teamId,
           senderId: authUser.id,
+          fileUrl,
+          fileName,
+          fileType,
+          fileSize,
         },
         include: {
           sender: {

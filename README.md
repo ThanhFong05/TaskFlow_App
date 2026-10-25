@@ -204,6 +204,46 @@ erDiagram
 
 ---
 
+## Self-Assessment Checklist (Assignment 3 & 4)
+
+### A. Authentication & Security
+- [x] **[AUTH-01] User Self-Registration**: Users can register with name, email, and password. Newly registered accounts are activated immediately without confirmation links.
+- [x] **[AUTH-02] JWT Session & Security**: JWT-based authentication via Supabase Auth and HTTP-only cookies. Users can log out securely.
+- [x] **[AUTH-03] Pre-seeded Dual Test Accounts**: Two verified test accounts belonging to the same team are available for immediate login and testing.
+
+### B. Real-time Chat
+- [x] **[CHAT-01] Dedicated Real-time Channel**: Supabase Realtime uses WebSocket broadcast channels to deliver chat messages instantly across users without page reload.
+- [x] **[CHAT-02] Persistent Chat History**: Chat messages are persistently stored in PostgreSQL (`Message` table) and reloaded on page refresh.
+- [x] **[CHAT-03] Typing Indicator**: Displays live typing indicator (*"User is typing..."*) when another team member types.
+- [x] **[CHAT-04] Online Presence**: Tracks and displays active team members online in real time using Supabase Presence.
+- [x] **[CHAT-05] File and Image Attachments**: Users can send image and file attachments through chat. Images are compressed with HTML5 Canvas, previewed in a Lightbox modal, and downloadable.
+
+### C. Task Management
+- [x] **[TASK-01] Real-time Task Synchronization**: Creating, editing, moving status, and deleting tasks updates the board live across connected sessions.
+- [x] **[TASK-02] Three-column Kanban Board**: Visual 3-column workflow (*To Do*, *In Progress*, *Done*) with instant status transitions.
+- [x] **[TASK-03] Real-time Update Notifications**: Real-time Toast notifications inform users when tasks or messages are modified by teammates.
+- [x] **[TASK-04] Task Filtering and Search**: Filter tasks by status, priority, and assignee, plus live keyword search.
+
+### D. Role-Based Access Control
+- [x] **[ROLE-01] Three-tier Role System**: Supports Owner, Admin, and Member roles, enforced both in UI and server-side Route Handlers.
+- [x] **[ROLE-02] Role Promotion and Demotion**: Owner can promote members to Admin, demote to Member, or transfer ownership.
+- [x] **[ROLE-03] Team Management Permissions**: Only Owner can edit or delete team. Admins can manage tasks and members.
+- [x] **[ROLE-04] Task Authorization Matrix**: Owner & Admin can delete any task; Members can only delete their own tasks (unauthorized tasks locked with 🔒).
+
+### E. Notifications & Audit Trail
+- [x] **[NOTIF-01] Notification Triggers**: In-app notifications generated for task assignments, team invitations, and role updates.
+- [x] **[NOTIF-02] Notification Center**: Top bell icon with pulsating unread badge, dropdown list, and mark-as-read controls.
+- [x] **[NOTIF-03] Browser Push Notifications**: Web Notifications API integration with toggle button to enable/disable desktop push notifications.
+- [x] **[NOTIF-04] Audit Trail**: Detailed chronological activity log recording who did what and when.
+
+### F. Deployment & Submission
+- [x] **[DEPLOY-01] Application Deployment**: Deployed on Vercel connected to Supabase PostgreSQL.
+- [x] **[DEPLOY-02] Dual-session Testing**: Tested across dual browser sessions (Owner & Member).
+- [x] **[DEPLOY-03] Demo Video**: Ready for demo recording showcasing live chat, presence, typing, and task sync.
+- [x] **[DEPLOY-04] Public GitHub Repository**: Public repository at https://github.com/ThanhFong05/TaskFlow_App.
+
+---
+
 ## Submission Information (Template)
 
 Student ID: __________

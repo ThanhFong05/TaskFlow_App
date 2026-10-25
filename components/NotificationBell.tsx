@@ -13,13 +13,55 @@ import {
   Info,
   Clock,
   ExternalLink,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
 export default function NotificationBell({ userId }: { userId?: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotifications(userId);
+
+  // Check initial browser notification permission
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const saved = localStorage.getItem('tafo_push_enabled');
+      setPushEnabled(saved === 'true' && Notification.permission === 'granted');
+    }
+  }, []);
+
+  const togglePushNotifications = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      alert('Your browser does not support Web Notifications API.');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      const nextState = !pushEnabled;
+      setPushEnabled(nextState);
+      localStorage.setItem('tafo_push_enabled', String(nextState));
+      if (nextState) {
+        new Notification('Browser Notifications Enabled', {
+          body: 'You will receive real-time push alerts for tasks and team events.',
+          icon: '/favicon.ico',
+        });
+      }
+    } else {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setPushEnabled(true);
+        localStorage.setItem('tafo_push_enabled', 'true');
+        new Notification('Browser Notifications Enabled', {
+          body: 'You will receive real-time push alerts for tasks and team events.',
+          icon: '/favicon.ico',
+        });
+      } else {
+        alert('Please allow notification permission in your browser address bar.');
+      }
+    }
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -92,15 +134,33 @@ export default function NotificationBell({ userId }: { userId?: string }) {
               )}
             </div>
 
-            {unreadCount > 0 && (
+            <div className="flex items-center space-x-2">
+              {/* Browser Push Toggle Button */}
               <button
-                onClick={markAllAsRead}
-                className="flex items-center space-x-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+                onClick={togglePushNotifications}
+                className={`p-1.5 rounded-lg text-xs font-medium transition-colors flex items-center space-x-1 ${
+                  pushEnabled
+                    ? 'text-emerald-400 hover:bg-emerald-500/10'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                }`}
+                title={pushEnabled ? 'Browser Push Notifications: Enabled' : 'Enable Browser Push Notifications'}
               >
-                <CheckCheck className="w-3.5 h-3.5" />
-                <span>Mark all read</span>
+                {pushEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                <span className="text-[10px] hidden sm:inline">
+                  {pushEnabled ? 'Push On' : 'Push Off'}
+                </span>
               </button>
-            )}
+
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="flex items-center space-x-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium ml-1"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span>Mark read</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Notifications List */}

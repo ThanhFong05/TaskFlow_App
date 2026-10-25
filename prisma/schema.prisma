@@ -68,6 +68,10 @@ model Message {
   content   String
   teamId    String
   senderId  String
+  fileUrl   String?
+  fileName  String?
+  fileType  String?
+  fileSize  Int?
   createdAt DateTime @default(now())
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)

@@ -126,14 +126,32 @@ export default function TeamDetailPage({
   // Live incoming message state for chat
   const [liveIncomingMessage, setLiveIncomingMessage] = useState<ChatMessage | null>(null);
 
-  // Live task update callbacks
+  // Real-time Update Toast Notifications
+  interface ToastItem {
+    id: string;
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning';
+  }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const addToast = useCallback((title: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
+    const id = Math.random().toString(36).substring(7);
+    setToasts((prev) => [...prev, { id, title, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  }, []);
+
+  // Live task update callbacks with Toast notifications
   const handleLiveTaskCreated = useCallback((newTask: Task) => {
     setTeam((prev) => {
       if (!prev) return prev;
       if (prev.tasks.some((t) => t.id === newTask.id)) return prev;
       return { ...prev, tasks: [newTask, ...prev.tasks] };
     });
-  }, []);
+    addToast('Task Created', `"${newTask.title}" was created by a teammate`, 'success');
+  }, [addToast]);
 
   const handleLiveTaskUpdated = useCallback((updatedTask: Task) => {
     setTeam((prev) => {
@@ -143,7 +161,8 @@ export default function TeamDetailPage({
         tasks: prev.tasks.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t)),
       };
     });
-  }, []);
+    addToast('Task Updated', `"${updatedTask.title}" was updated by a teammate`, 'info');
+  }, [addToast]);
 
   const handleLiveTaskDeleted = useCallback((taskId: string) => {
     setTeam((prev) => {
@@ -153,11 +172,16 @@ export default function TeamDetailPage({
         tasks: prev.tasks.filter((t) => t.id !== taskId),
       };
     });
-  }, []);
+    addToast('Task Deleted', 'A task was deleted from the board', 'warning');
+  }, [addToast]);
 
   const handleLiveMessage = useCallback((msg: ChatMessage) => {
     setLiveIncomingMessage(msg);
-  }, []);
+    if (activeTab !== 'chat') {
+      const senderName = msg.sender?.name || msg.sender?.email?.split('@')[0] || 'Teammate';
+      addToast('New Team Message', `${senderName}: ${msg.content || 'Sent an attachment'}`, 'info');
+    }
+  }, [activeTab, addToast]);
 
   // Supabase Realtime Hook
   const {
@@ -1452,6 +1476,32 @@ export default function TeamDetailPage({
         isOpen={showPermissionsModal}
         onClose={() => setShowPermissionsModal(false)}
       />
+
+      {/* Floating Real-time Update Toasts Container */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto p-4 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all duration-300 animate-in slide-in-from-bottom-4 flex items-start space-x-3 ${
+              toast.type === 'success'
+                ? 'bg-slate-900/95 border-emerald-500/40 text-emerald-300'
+                : toast.type === 'warning'
+                ? 'bg-slate-900/95 border-rose-500/40 text-rose-300'
+                : 'bg-slate-900/95 border-indigo-500/40 text-indigo-300'
+            }`}
+          >
+            <div className="mt-0.5">
+              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+              {toast.type === 'warning' && <AlertCircle className="w-5 h-5 text-rose-400" />}
+              {toast.type === 'info' && <Radio className="w-5 h-5 text-indigo-400 animate-pulse" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h5 className="text-xs font-bold text-white mb-0.5">{toast.title}</h5>
+              <p className="text-xs text-slate-300 leading-snug">{toast.message}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
